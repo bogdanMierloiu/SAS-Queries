@@ -50,34 +50,81 @@ LIBNAME LASRLIB SASIOLA  TAG=VAPUBLIC  PORT=10031 HOST="va.cpt-dev.eonsn.ro"  SI
 
 option DBIDIRECTEXEC;
 
-proc sql noprint;
-	create view TEMP_LASR_VIEW_197 as
-    SELECT
-        CONTOR.devloc length=8 format=BEST12. AS devloc,
-        CONTOR.equnr length=8 format=BEST12. AS equnr,
-        CONTOR.sparte length=8 format=BEST12. AS sparte,
-        /* Tip CONTOR Simplificat */CASE
-            WHEN Index(UpCase(CONTOR.matnr_desc),
-            'MONO') > 0 THEN 1
-            WHEN Index(UpCase(CONTOR.matnr_desc),
-            'TRI') > 0 THEN 3
-            ELSE -1END length=8 format=NLNUMI6. AS complexitate_instalatie length=8 format=NLNUMI6. AS complexitate_instalatie
-        FROM
-            LASRLIB.CONTOR CONTOR
-        WHERE
-            CONTOR.gertyptxtl = 'contor'
-            AND (
-                UPCASE(CONTOR.matnr_desc) LIKE '%MONO%'
-                OR UPCASE(CONTOR.matnr_desc) LIKE '%TRI%'
-            )
-            AND CONTOR.devloc IS NOT NULL
-            AND CONTOR.sparte = 1;
+proc sql;
+   create table CONTOR_CLEAN as
+   select C.devloc,
+          C.equnr,
+          C.sparte,
+          C.matnr_desc,
+          case
+              when index(upcase(C.matnr_desc),'MONO')>0 then 1
+              when index(upcase(C.matnr_desc),'TRI')>0 then 3
+              else 1
+          end as complexitate_instalatie,
+          input(put(C.datab, z8.), yymmdd8.) as datab_d format=date9.,
+          input(put(C.datbi, z8.), yymmdd8.) as datbi_d format=date9.
+   from LASRLIB.CONTOR C
+   where C.devloc is not null
+     and C.datab is not null
+     and C.datbi is not null
+     and C.gertyptxtl = 'contor';
 quit;
+
+proc sql;
+   create table CONTOR_CLEAN_FILT as
+   select *
+   from CONTOR_CLEAN
+   where today() between datab_d and datbi_d
+   and (index(matnr_desc,'MONO')>0
+      or index(matnr_desc,'TRI')>0);
+quit;
+
+proc sql;
+   create view CONTOR_FINAL as
+   select a.*
+   from CONTOR_CLEAN_FILT a
+   inner join (
+       select devloc,
+              max(complexitate_instalatie) as max_complexitate_instalatie
+       from CONTOR_CLEAN_FILT
+       group by devloc
+   ) b
+   on a.devloc = b.devloc
+  and a.complexitate_instalatie = b.max_complexitate_instalatie;
+quit;
+
+
 /* Drop existing table */
 %vdb_dt(LASRLIB.CONTOR_GOLD);
-data LASRLIB.CONTOR_GOLD (   partition=(devloc)  );
-	set TEMP_LASR_VIEW_197 (  );
+
+data LASRLIB.CONTOR_GOLD ();
+	set CONTOR_FINAL (  );
 run;
+
+/* VERIFICARI DUPLICATE */
+proc sql;
+  /* grupăm pe cheie și numărăm câte rânduri ies */
+  create table contor_dup as
+  select
+      devloc,
+      count(*) as nr_randuri
+  from LASRLIB.CONTOR_GOLD
+  group by devloc
+  having nr_randuri > 1;
+quit;
+
+/* vezi primele cazuri cu probleme */
+proc print data=contor_dup (obs=20);
+run;
+
+/* dacă vrei detaliu pe un punct anume (ex. unde ai mai multe rânduri) */
+proc sql;
+  select *
+  from LASRLIB.CONTOR_GOLD
+  where devloc in (select devloc from contor_dup)
+  order by devloc;
+quit;
+
 
 /* Synchronize table registration */
 %registerTable(

@@ -1,0 +1,27 @@
+"table_name","column_name","data_type","character_maximum_length","is_nullable","column_default"
+"rezultate_frauda_publish","probabilitate_de_frauda","numeric",NULL,"YES",NULL
+"rezultate_frauda_publish","nlc","text",NULL,"YES",NULL
+"rezultate_frauda_publish","localitate","text",NULL,"YES",NULL
+"rezultate_frauda_publish","judet","text",NULL,"YES",NULL
+"rezultate_frauda_publish","punct_de_consum_str","text",NULL,"YES",NULL
+"rezultate_frauda_publish","punct_de_consum","bigint",NULL,"YES",NULL
+"rezultate_frauda_publish","subregiune","text",NULL,"YES",NULL
+"rezultate_frauda_publish","statie","text",NULL,"YES",NULL
+"rezultate_frauda_publish","linie","text",NULL,"YES",NULL
+"rezultate_frauda_publish","post_de_transformare","text",NULL,"YES",NULL
+"rezultate_frauda_publish","plecare","text",NULL,"YES",NULL
+"rezultate_frauda_publish","firida","text",NULL,"YES",NULL
+"rezultate_frauda_publish","clasa_contract","text",NULL,"YES",NULL
+"rezultate_frauda_publish","partener_de_afaceri_descriere","text",NULL,"YES",NULL
+"rezultate_frauda_publish","complexitate_instalatie","integer",NULL,"YES",NULL
+"rezultate_frauda_publish","gps_lat","text",NULL,"YES",NULL
+"rezultate_frauda_publish","gps_lon","text",NULL,"YES",NULL
+"rezultate_frauda_publish","geo_point","text",NULL,"YES",NULL
+"rezultate_frauda_publish","categorie_risc","text",NULL,"YES",NULL
+"rezultate_frauda_publish","categorie_risc_culoare_d","numeric",NULL,"YES",NULL
+"rezultate_frauda_publish","validare_gps","text",NULL,"YES",NULL
+"rezultate_frauda_publish","traseu_electric","text",NULL,"YES",NULL
+"rezultate_frauda_publish","data_actualizare","timestamp without time zone",NULL,"YES",NULL
+"rezultate_frauda_publish","actualizat_de","text",NULL,"YES",NULL
+"rezultate_frauda_publish","tip_energie","text",NULL,"YES",NULL
+"rezultate_frauda_publish","sursa_complexitate","text",NULL,"YES",NULL

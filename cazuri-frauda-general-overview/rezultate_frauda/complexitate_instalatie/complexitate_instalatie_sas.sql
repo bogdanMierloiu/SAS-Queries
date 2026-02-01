@@ -76,6 +76,21 @@ proc sql noprint;
     ORDER BY devloc, sursa_complexitate;
 quit;
 
+proc sql;
+  /* grupăm pe cheie și numărăm câte rânduri ies */
+  create table complexitate_dup as
+  select
+      devloc,
+      count(*) as nr_randuri
+  from LASRLIB.COMPLEXITATE_INSTALATIE
+  group by devloc
+  having nr_randuri > 1;
+quit;
+
+/* vezi primele cazuri cu probleme */
+proc print data=complexitate_dup (obs=20);
+run;
+
 /* 6. Înregistrare în metadata (pentru a fi vizibilă în UI) */
 %macro registertable(REPOSITORY=Foundation, REPOSID=, LIBRARY=, TABLE=, FOLDER=, TABLEID=, PREFIX=);
     %let REPOSITORY=%superq(REPOSITORY);

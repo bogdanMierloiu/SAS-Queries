@@ -16,15 +16,9 @@ LIBNAME LASRLIB SASIOLA
 
 /* 3. Verifică dacă tabela există și șterge-o dacă da */
 %macro check_and_delete;
-    %if %sysfunc(exist(LASRLIB.REZULTATE_FRAUDA_PUBLISH)) %then %do;
-        proc datasets library=LASRLIB nolist;
-            delete REZULTATE_FRAUDA_PUBLISH;
-        quit;
-        %put NOTE: Tabela existentă REZULTATE_FRAUDA_PUBLISH a fost ștearsă.;
-    %end;
-    %else %do;
-        %put NOTE: Tabela REZULTATE_FRAUDA_PUBLISH nu există, se va crea una nouă.;
-    %end;
+    proc datasets library=LASRLIB nolist;
+        delete REZULTATE_FRAUDA_PUBLISH REZULTATE_FRAUDA_JOINED;
+    quit;
 %mend;
 %check_and_delete;
 
@@ -32,7 +26,32 @@ LIBNAME LASRLIB SASIOLA
 option DBIDIRECTEXEC;
 
 proc sql;
-    create table LASRLIB.REZULTATE_FRAUDA_PUBLISH as
+    create table TMP_BILL_39 as
+    select DISTINCT A.punct_de_consum,
+				    A.statie,
+				    A.linie,
+				    A.post_de_transformare,
+				    A.localitate,
+				    A.judet,
+				    A.subregiune,
+				    A.plecare,
+				    A.firida,
+				    A.clasa_contract,
+				    A.partener_de_afaceri_descriere
+    from LASRLIB.BILL39 as A
+    INNER JOIN (select max(B.NUMAR_FACTURA) AS NUMAR_FACTURA, PUNCT_DE_CONSUM
+        from LASRLIB.BILL39 as B
+        GROUP BY PUNCT_DE_CONSUM
+        ) AS B
+       ON B.NUMAR_FACTURA = A.NUMAR_FACTURA
+      AND B.PUNCT_DE_CONSUM = A.PUNCT_DE_CONSUM;
+
+	create table TMP_CI_CLEAN AS
+	SELECT devloc, sursa_complexitate, MAX(complexitate_instalatie) as complexitate_instalatie
+				 FROM LASRLIB.COMPLEXITATE_INSTALATIE
+				GROUP BY devloc, sursa_complexitate;
+
+    create table LASRLIB.REZULTATE_FRAUDA_JOINED as
     SELECT
         /* Coloanele existente */
         PROBABILITATE.probabilitate_de_frauda AS probabilitate_de_frauda,
@@ -41,7 +60,9 @@ proc sql;
         BILL39.judet length=2 format=$2. AS judet,
 
         /* COLOANE NOI DIN BILL39 */
+        PUT(BILL39.punct_de_consum, BEST12.) AS punct_de_consum_str,
         BILL39.punct_de_consum AS punct_de_consum,
+
         BILL39.subregiune AS subregiune,
         BILL39.statie AS statie,
         BILL39.linie AS linie,
@@ -49,9 +70,14 @@ proc sql;
         BILL39.plecare AS plecare,
         BILL39.firida AS firida,
         BILL39.clasa_contract,
+        BILL39.partener_de_afaceri_descriere,
 
         /* Coloane calculate existente */
-        CI.complexitate_instalatie AS complexitate_instalatie,
+        CASE WHEN CNT.sparte = 1 THEN CI.complexitate_instalatie
+        	 WHEN CNT.sparte = 2 THEN 1
+        	 ELSE -1
+        END AS complexitate_instalatie,
+
         LC.gps_lat, LC.gps_lon,
         /* Coloane calculate pentru geo */
         CATX(',', LC.gps_lat, LC.gps_lon) length=30
@@ -72,39 +98,46 @@ proc sql;
             WHEN PROBABILITATE.probabilitate_de_frauda > 0 THEN 0
         END AS categorie_risc_culoare_d,
 
-        CASE
-            WHEN LC.gps_lat = 0 OR LC.gps_lon = 0 THEN 'GPS Invalid'
+        CASE WHEN (LC.gps_lat = 0 OR LC.gps_lon = 0) OR ( LC.gps_lat IS NULL OR LC.gps_lon IS NULL) THEN 'GPS Invalid'
             ELSE 'GPS Valid'
         END AS validare_gps length=15,
 
         /* Info adițional util pentru analiză */
         CATX(' - ', BILL39.statie, BILL39.linie, BILL39.post_de_transformare) length=100
             label='Traseu electric' AS traseu_electric,
-
         /* Timestamp pentru tracking */
         datetime() format=datetime20. AS data_actualizare,
         "&SYSUSERID" AS actualizat_de length=30,
         CASE
-        	WHEN CNT.sparte = 1 THEN 'electric'
-        	WHEN CNT.sparte = 2 THEN 'gaz'
+        	WHEN CNT.sparte = 1 THEN 'Electricitate'
+        	WHEN CNT.sparte = 2 THEN 'Gaz'
         	ELSE 'N/A'
-        END AS tip_energie
-    FROM
-        LASRLIB.BILL39 BILL39
-    INNER JOIN
-        LASRLIB.LC LC
-            ON BILL39.punct_de_consum = LC.vstelle
-    INNER JOIN
-        LASRLIB.PROBABILITATE PROBABILITATE
-            ON BILL39.punct_de_consum = PROBABILITATE.NLC
-    INNER JOIN
-    	LASRLIB.CONTOR CNT
-    		ON LC.devloc = CNT.devloc
-	INNER JOIN LASRLIB.COMPLEXITATE_INSTALATIE CI ON CI.devloc = LC.devloc
+        END AS tip_energie,
+        CI.sursa_complexitate AS sursa_complexitate
+    FROM TMP_BILL_39 BILL39
+    INNER JOIN LASRLIB.LC LC ON BILL39.punct_de_consum = LC.vstelle
+    INNER JOIN LASRLIB.PROBABILITATE PROBABILITATE ON BILL39.punct_de_consum = PROBABILITATE.NLC
+    INNER JOIN LASRLIB.CONTOR_GOLD CNT ON LC.devloc = CNT.devloc
+	LEFT JOIN TMP_CI_CLEAN CI ON CI.devloc = LC.devloc
+	;
 /*     AICI SE FACE JOIN DE TIP LEFT CU AMBELE TABELA GAZE + ELECTRIC length=8 format=BEST12. */
-    WHERE
-         PROBABILITATE.probabilitate_de_frauda > 0;
+/*     WHERE PROBABILITATE.probabilitate_de_frauda > 0; -- schimba cu ce vrei ❤👌*/
 quit;
+
+proc sql;
+    create table LASRLIB.REZULTATE_FRAUDA_PUBLISH as
+    select a.*
+    from LASRLIB.REZULTATE_FRAUDA_JOINED a
+    inner join (
+        select punct_de_consum,
+               max(complexitate_instalatie) as max_complexitate_instalatie
+        from LASRLIB.REZULTATE_FRAUDA_JOINED
+        group by punct_de_consum
+    ) b
+    on a.punct_de_consum = b.punct_de_consum
+   and a.complexitate_instalatie = b.max_complexitate_instalatie;
+quit;
+
 
 /* 5. Verifică că tabela s-a creat cu succes */
 %macro verify_table;
@@ -152,6 +185,33 @@ quit;
     run;
     quit;
 %mend;
+
+proc sql;
+  /* grupăm pe cheie și numărăm câte rânduri ies */
+  create table rezultate_frauda_dup as
+  select
+      punct_de_consum,
+      count(*) as nr_randuri
+  from LASRLIB.REZULTATE_FRAUDA_PUBLISH
+  group by punct_de_consum
+  having nr_randuri > 1;
+quit;
+
+proc sql;
+  /* cautare dupa punct de consum */
+  create table rezultate_frauda_search as
+  select *
+  from LASRLIB.REZULTATE_FRAUDA_PUBLISH
+  where punct_de_consum = 5001656721;
+quit;
+
+/* vezi primele cazuri cu probleme */
+proc print data=rezultate_frauda_dup (obs=20);
+run;
+
+proc print data=rezultate_frauda_search (obs=20);
+run;
+
 
 /* Apelează macro-ul pentru înregistrare */
 %registerTable(

@@ -51,28 +51,42 @@ LIBNAME LASRLIB SASIOLA  TAG=VAPUBLIC  PORT=10031 HOST="va.cpt-dev.eonsn.ro"  SI
 option DBIDIRECTEXEC;
 
 proc sql noprint;
-	create table TEMP_LASR_VIEW_0 as
-	SELECT PB.probabilitate_de_frauda, COUNT(*) AS nr_clienti,
-			AVG(CI.complexitate_instalatie) AS avg_complexitate_instalatie
-	FROM LASRLIB.PROBABILITATE PB
-    INNER JOIN LASRLIB.LC LC
-    	ON LC.vstelle = PB.NLC
- 	INNER JOIN LASRLIB.COMPLEXITATE_INSTALATIE CI
- 		ON LC.devloc = CI.devloc
-	GROUP BY PB.probabilitate_de_frauda
-	;
+	create table TEMP_TABLE as
+    SELECT
+        TRANSFORMATOR_SILVER.devloc length=8 format=BEST12. AS devloc,
+        3 * TRANSFORMATOR_SILVER.raport_transformare length=8 AS complexitate_instalatie
+    FROM
+        LASRLIB.TRANSFORMATOR_SILVER TRANSFORMATOR_SILVER
+    WHERE
+        TRANSFORMATOR_SILVER.raport_transformare > 0
+        AND TRANSFORMATOR_SILVER.raport_transformare IS NOT NULL;
+/*     GROUP BY   */
+/*     	TRANSFORMATOR_SILVER.devloc; */
+
 quit;
 /* Drop existing table */
-%vdb_dt(LASRLIB.CASES_PUBLISH);
-data LASRLIB.CASES_PUBLISH (    );
-	set TEMP_LASR_VIEW_0 (  );
+%vdb_dt(LASRLIB.TRANSFORMATOR_GOLD);
+
+
+data LASRLIB.TRANSFORMATOR_GOLD( );
+    set TEMP_TABLE;
 run;
 
 
-/* Apelează macro-ul pentru înregistrare */
-%registerTable(
-    LIBRARY=%nrstr(/Shared Data/SAS Visual Analytics/Public/Visual Analytics Public LASR),
-    REPOSID=%str(A5QI2HZ4),
-    FOLDER=%nrstr(/Shared Data/SAS Visual Analytics/Public/LASR),
-    TABLE=CASES_PUBLISH
-);
+proc sql;
+  /* grupăm pe cheie și numărăm câte rânduri ies */
+  create table transformator_gold_dup as
+  select
+      devloc,
+      count(*) as nr_randuri
+  from LASRLIB.TRANSFORMATOR_GOLD
+  group by devloc
+  having nr_randuri > 1;
+quit;
+
+/* vezi primele cazuri cu probleme */
+proc print data=transformator_gold_dup (obs=20);
+run;
+
+proc print data=LASRLIB.TRANSFORMATOR_GOLD (obs=20);
+run;

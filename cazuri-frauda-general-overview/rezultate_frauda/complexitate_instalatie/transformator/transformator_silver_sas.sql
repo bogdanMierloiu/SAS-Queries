@@ -110,10 +110,26 @@ proc sql noprint;
 
 quit;
 
+
 /* Drop existing table */
 %vdb_dt(LASRLIB.TRANSFORMATOR_SILVER);
-data LASRLIB.TRANSFORMATOR_SILVER (   partition=(devloc)  );
+data LASRLIB.TRANSFORMATOR_SILVER ( );
 	set MULTIPLY_VALUES (  );
+run;
+
+proc sql;
+  /* grupăm pe cheie și numărăm câte rânduri ies */
+  create table transformator_dup as
+  select
+      devloc,
+      count(*) as nr_randuri
+  from LASRLIB.TRANSFORMATOR_SILVER
+  group by devloc
+  having nr_randuri > 1;
+quit;
+
+/* vezi primele cazuri cu probleme */
+proc print data=transformator_dup (obs=20);
 run;
 
 

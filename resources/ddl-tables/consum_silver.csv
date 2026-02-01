@@ -1,0 +1,12 @@
+"table_name","column_name","data_type","character_maximum_length","is_nullable","column_default"
+"consum_silver","equnr","text",NULL,"NO",NULL
+"consum_silver","sernr","text",NULL,"YES",NULL
+"consum_silver","zwnummer","text",NULL,"NO",NULL
+"consum_silver","kennziff","text",NULL,"YES",NULL
+"consum_silver","punct_de_consum","bigint",NULL,"YES",NULL
+"consum_silver","punct_de_consum_str","text",NULL,"YES",NULL
+"consum_silver","data_citire","date",NULL,"NO",NULL
+"consum_silver","consum","numeric",NULL,"YES",NULL
+"consum_silver","datab_d","date",NULL,"YES",NULL
+"consum_silver","datbi_d","date",NULL,"YES",NULL
+"consum_silver","massread","text",NULL,"YES",NULL
