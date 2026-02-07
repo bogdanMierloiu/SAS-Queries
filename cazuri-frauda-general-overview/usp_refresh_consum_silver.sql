@@ -1,19 +1,112 @@
-DROP TABLE IF EXISTS sas_visual_analytics.tmp_bill_39;
-
-CREATE TABLE sas_visual_analytics.tmp_bill_39 (
-    punct_de_consum TEXT PRIMARY KEY,
-    localitate TEXT,
-    judet TEXT,
-    subregiune TEXT,
-    clasa_contract TEXT,
-    partener_de_afaceri_descriere TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_tmp_bill39_localitate ON sas_visual_analytics.tmp_bill_39(localitate);
-CREATE INDEX IF NOT EXISTS idx_tmp_bill39_judet ON sas_visual_analytics.tmp_bill_39(judet);
-CREATE INDEX IF NOT EXISTS idx_tmp_bill39_subregiune ON sas_visual_analytics.tmp_bill_39(subregiune);
+CREATE OR REPLACE PROCEDURE sas_visual_analytics.usp_refresh_consum_silver()
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    BEGIN
 
 
+-- CONTOR --
+TRUNCATE TABLE sas_visual_analytics.contor_clean;
+
+INSERT INTO sas_visual_analytics.contor_clean (
+    devloc, equnr, sparte, complexitate_instalatie, datab_d, datbi_d
+)
+SELECT DISTINCT ON (c.devloc)
+    c.devloc,
+    c.equnr,
+    c.sparte,
+    CASE
+        WHEN UPPER(c.matnr_desc) LIKE '%MONO%' THEN 1
+        WHEN UPPER(c.matnr_desc) LIKE '%TRI%'  THEN 3
+        ELSE 1
+    END AS complexitate_instalatie,
+    TO_DATE(c.datab::text, 'YYYYMMDD') AS datab_d,
+    TO_DATE(c.datbi::text, 'YYYYMMDD') AS datbi_d
+FROM integration.contor c
+WHERE c.devloc IS NOT NULL
+  AND c.datab IS NOT NULL
+  AND c.datbi IS NOT NULL
+  AND c.gertyptxtl = 'contor'
+  AND CURRENT_DATE BETWEEN TO_DATE(c.datab::text, 'YYYYMMDD')
+                        AND TO_DATE(c.datbi::text, 'YYYYMMDD')
+ORDER BY c.devloc,
+         CASE
+            WHEN UPPER(c.matnr_desc) LIKE '%MONO%' THEN 1
+            WHEN UPPER(c.matnr_desc) LIKE '%TRI%'  THEN 3
+            ELSE 1
+         END DESC;
+
+
+-- TRANSFORMATOR --
+TRUNCATE TABLE sas_visual_analytics.transformator_clean;
+
+INSERT INTO sas_visual_analytics.transformator_clean (devloc, complexitate_instalatie)
+WITH base AS (
+    SELECT
+        t.devloc,
+        t.wgruppe,
+        substring(t.wgruppe from '^[^0-9]*') AS tip,
+        regexp_replace(t.wgruppe, '[^0-9/]', '', 'g') AS numere_doar
+    FROM integration.transformator t
+    WHERE t.gertyptxtl = 'transformat'
+	  AND t.devloc IS NOT NULL
+      AND t.wgruppe IS NOT NULL
+      AND t.wgruppe LIKE '%/%'
+),
+vals AS (
+    SELECT
+        b.devloc,
+        b.wgruppe,
+        b.tip,
+        b.numere_doar,
+        NULLIF(split_part(b.numere_doar, '/', 1), '')::numeric AS val_primar,
+        CASE
+            WHEN split_part(b.numere_doar, '/', 2) IN ('', '0', '00') THEN NULL
+            WHEN split_part(b.numere_doar, '/', 2) ~ '^0[0-9]+'
+                THEN ('0.' || substring(split_part(b.numere_doar, '/', 2) FROM 2))::numeric
+            ELSE split_part(b.numere_doar, '/', 2)::numeric
+        END AS val_secundar
+    FROM base b
+),
+rt AS (
+    SELECT
+        v.devloc,
+        v.wgruppe,
+        CASE
+            WHEN v.val_secundar IS NOT NULL AND v.val_secundar <> 0
+                THEN v.val_primar / v.val_secundar
+        END AS raport_transformare
+    FROM vals v
+),
+distinct_rt AS (SELECT DISTINCT devloc, wgruppe, raport_transformare from rt)
+SELECT devloc,
+	   CAST(3 * SUM(raport_transformare) AS INT) AS complexitate_instalatie
+  FROM distinct_rt
+ GROUP BY devloc;
+
+
+-- COMPLEXITATE INSTALATIE --
+TRUNCATE TABLE sas_visual_analytics.complexitate_instalatie;
+
+INSERT INTO sas_visual_analytics.complexitate_instalatie (
+    devloc, complexitate_instalatie, sursa_complexitate
+)
+SELECT devloc,
+	   complexitate_instalatie AS complexitate_instalatie,
+	   'CONTOR' AS sursa_complexitate
+ FROM sas_visual_analytics.contor_clean
+WHERE complexitate_instalatie IS NOT NULL
+
+UNION ALL
+
+SELECT devloc,
+	   complexitate_instalatie AS complexitate_instalatie,
+	  'TRANSFORMATOR' AS sursa_complexitate
+FROM sas_visual_analytics.transformator_clean
+WHERE complexitate_instalatie IS NOT NULL;
+
+
+-- REZULTATE FRAUDA --
 TRUNCATE TABLE sas_visual_analytics.tmp_bill_39;
 
 WITH params AS (
@@ -80,23 +173,6 @@ SELECT DISTINCT ON (punct_de_consum)
 FROM combined
 ORDER BY punct_de_consum;
 
-
-
-select count(1) from sas_visual_analytics.tmp_bill_39
-
-
-
-DROP TABLE IF EXISTS sas_visual_analytics.tmp_ci_clean;
-
-CREATE TABLE sas_visual_analytics.tmp_ci_clean (
-    devloc TEXT PRIMARY KEY,
-    sursa_complexitate TEXT,
-    complexitate_instalatie INT
-);
-
-CREATE INDEX IF NOT EXISTS idx_tmp_ci_complexitate ON sas_visual_analytics.tmp_ci_clean(complexitate_instalatie);
-CREATE INDEX IF NOT EXISTS idx_tmp_ci_sursa ON sas_visual_analytics.tmp_ci_clean(sursa_complexitate);
-
 TRUNCATE TABLE sas_visual_analytics.tmp_ci_clean;
 
 INSERT INTO sas_visual_analytics.tmp_ci_clean (devloc, sursa_complexitate, complexitate_instalatie)
@@ -111,32 +187,6 @@ INNER JOIN (SELECT devloc,
 			GROUP BY devloc
 			) ci_max ON ci.devloc = ci_max.devloc
 			        AND ci.complexitate_instalatie = ci_max.complexitate_instalatie;
-
-
-
-
-
-DROP TABLE IF EXISTS sas_visual_analytics.rezultate_frauda_publish;
-
-CREATE TABLE sas_visual_analytics.rezultate_frauda_publish (
-    probabilitate_de_frauda NUMERIC,
-    localitate TEXT,
-    judet TEXT,
-    punct_de_consum_str TEXT,
-    punct_de_consum BIGINT,
-    clasa_contract TEXT,
-    partener_de_afaceri_descriere TEXT,
-    complexitate_instalatie INT,
-    gps_lat DECIMAL(10,6),
-    gps_lon DECIMAL(10,6),
-    tip_energie TEXT,
-    tip_energie_measure NUMERIC,
-    sursa_complexitate TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_rez_frauda_punct ON sas_visual_analytics.rezultate_frauda_publish(punct_de_consum);
-CREATE INDEX IF NOT EXISTS idx_rez_frauda_judet ON sas_visual_analytics.rezultate_frauda_publish(judet);
-CREATE INDEX IF NOT EXISTS idx_rez_frauda_localitate ON sas_visual_analytics.rezultate_frauda_publish(localitate);
 
 TRUNCATE TABLE sas_visual_analytics.rezultate_frauda_publish;
 
@@ -164,7 +214,7 @@ SELECT
       WHEN abs(trim(lc.gps_lon)::numeric) <= 180
       THEN NULLIF(trim(lc.gps_lon)::numeric, 0)::decimal(10,6)
       ELSE NULL
-    END AS gps_lon
+    END AS gps_lon,
 
     CASE
             WHEN cnt.sparte = '01' THEN 'Electricitate'
@@ -184,7 +234,9 @@ INNER JOIN sas_visual_analytics.contor_clean cnt ON lc.devloc = cnt.devloc
                                                         AND cnt.sparte IN ('01', '02')
 INNER JOIN sas_visual_analytics.tmp_ci_clean ci ON ci.devloc = lc.devloc;
 
---SELECT * FROM sas_visual_analytics.rezultate_frauda_publish WHERE punct_de_consum = '5001656721';
---SELECT COUNT(*) FROM sas_visual_analytics.rezultate_frauda_publish
---3.619.494
-
+    EXCEPTION
+        WHEN OTHERS THEN
+            RAISE;
+    END;
+END;
+$$;
