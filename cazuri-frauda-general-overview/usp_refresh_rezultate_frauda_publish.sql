@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE sas_visual_analytics.usp_refresh_consum_silver()
+CREATE OR REPLACE PROCEDURE sas_visual_analytics.usp_refresh_rezultate_frauda_publish()
 LANGUAGE plpgsql
 AS $$
 BEGIN
