@@ -67,7 +67,7 @@ WHERE 1=1
   AND c.v_zwstand::integer > 0
   AND c.adat IS NOT NULL
   AND c.adat <> '00000000'
-  AND c.data_citire BETWEEN DATE '2023-06-01' AND CURRENT_DATE
+  AND c.data_citire BETWEEN DATE '2024-06-01' AND CURRENT_DATE
   AND lc.vstelle IS NOT NULL;
 
 
@@ -144,8 +144,6 @@ CREATE TABLE sas_visual_analytics.consum_silver (
     data_citire DATE,
     index NUMERIC,
     consum NUMERIC,
-    datab_d DATE,
-    datbi_d DATE,
     massread TEXT,
     PRIMARY KEY (equnr, zwnummer, data_citire)
 );
@@ -158,7 +156,7 @@ TRUNCATE TABLE sas_visual_analytics.consum_silver;
 
 INSERT INTO sas_visual_analytics.consum_silver (
     equnr, sernr, zwnummer, kennziff, punct_de_consum,
-    punct_de_consum_str, data_citire, index, consum, datab_d, datbi_d, massread
+    punct_de_consum_str, data_citire, index, consum, massread
 )
 SELECT
     equnr,
@@ -170,8 +168,6 @@ SELECT
     data_citire,
     index_val AS index,
     ROUND(consum, 2) AS consum,
-    datab_d,
-    datbi_d,
     massread
 FROM sas_visual_analytics.consum_calculat
 WHERE consum IS NOT NULL
