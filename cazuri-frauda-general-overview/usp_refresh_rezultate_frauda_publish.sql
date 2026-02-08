@@ -206,14 +206,17 @@ SELECT
     END AS complexitate_instalatie,
 
     CASE
-      WHEN abs(trim(lc.gps_lat)::numeric) <= 90
-      THEN NULLIF(trim(lc.gps_lat)::numeric, 0)::decimal(10,6)
-      ELSE NULL
+        WHEN trim(lc.gps_lat) ~ '^[+-]?[0-9]+(\.[0-9]+)?$'
+             AND abs(trim(lc.gps_lat)::double precision) <= 90
+        THEN NULLIF(trim(lc.gps_lat)::double precision, 0)
+        ELSE NULL
     END AS gps_lat,
+
     CASE
-      WHEN abs(trim(lc.gps_lon)::numeric) <= 180
-      THEN NULLIF(trim(lc.gps_lon)::numeric, 0)::decimal(10,6)
-      ELSE NULL
+        WHEN trim(lc.gps_lon) ~ '^[+-]?[0-9]+(\.[0-9]+)?$'
+             AND abs(trim(lc.gps_lon)::double precision) <= 180
+        THEN NULLIF(trim(lc.gps_lon)::double precision, 0)
+        ELSE NULL
     END AS gps_lon,
 
     CASE

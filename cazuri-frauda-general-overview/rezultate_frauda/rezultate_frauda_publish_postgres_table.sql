@@ -119,19 +119,21 @@ INNER JOIN (SELECT devloc,
 DROP TABLE IF EXISTS sas_visual_analytics.rezultate_frauda_publish;
 
 CREATE TABLE sas_visual_analytics.rezultate_frauda_publish (
-    probabilitate_de_frauda NUMERIC,
-    localitate TEXT,
-    judet TEXT,
-    punct_de_consum_str TEXT,
-    punct_de_consum BIGINT,
-    clasa_contract TEXT,
+    probabilitate_de_frauda      NUMERIC,
+    localitate                   TEXT,
+    judet                        TEXT,
+    punct_de_consum_str          TEXT,
+    punct_de_consum              BIGINT,
+    clasa_contract               TEXT,
     partener_de_afaceri_descriere TEXT,
-    complexitate_instalatie INT,
-    gps_lat DECIMAL(10,6),
-    gps_lon DECIMAL(10,6),
-    tip_energie TEXT,
-    tip_energie_measure NUMERIC,
-    sursa_complexitate TEXT
+    complexitate_instalatie      INT,
+
+    gps_lat                      DOUBLE PRECISION,
+    gps_lon                      DOUBLE PRECISION,
+
+    tip_energie                  TEXT,
+    tip_energie_measure          NUMERIC,
+    sursa_complexitate           TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_rez_frauda_punct ON sas_visual_analytics.rezultate_frauda_publish(punct_de_consum);
@@ -156,21 +158,24 @@ SELECT
     END AS complexitate_instalatie,
 
     CASE
-      WHEN abs(trim(lc.gps_lat)::numeric) <= 90
-      THEN NULLIF(trim(lc.gps_lat)::numeric, 0)::decimal(10,6)
-      ELSE NULL
+        WHEN trim(lc.gps_lat) ~ '^[+-]?[0-9]+(\.[0-9]+)?$'
+             AND abs(trim(lc.gps_lat)::double precision) <= 90
+        THEN NULLIF(trim(lc.gps_lat)::double precision, 0)
+        ELSE NULL
     END AS gps_lat,
-    CASE
-      WHEN abs(trim(lc.gps_lon)::numeric) <= 180
-      THEN NULLIF(trim(lc.gps_lon)::numeric, 0)::decimal(10,6)
-      ELSE NULL
-    END AS gps_lon
 
     CASE
-            WHEN cnt.sparte = '01' THEN 'Electricitate'
-            WHEN cnt.sparte = '02' THEN 'Gaz'
-            ELSE 'N/A'
-        END AS tip_energie,
+        WHEN trim(lc.gps_lon) ~ '^[+-]?[0-9]+(\.[0-9]+)?$'
+             AND abs(trim(lc.gps_lon)::double precision) <= 180
+        THEN NULLIF(trim(lc.gps_lon)::double precision, 0)
+        ELSE NULL
+    END AS gps_lon,
+
+    CASE
+        WHEN cnt.sparte = '01' THEN 'Electricitate'
+        WHEN cnt.sparte = '02' THEN 'Gaz'
+        ELSE 'N/A'
+    END AS tip_energie,
     CASE
             WHEN cnt.sparte = '01' THEN 1
             WHEN cnt.sparte = '02' THEN 2
