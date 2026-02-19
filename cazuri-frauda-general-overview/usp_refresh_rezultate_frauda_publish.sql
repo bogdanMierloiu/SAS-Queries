@@ -229,7 +229,13 @@ SELECT
             WHEN cnt.sparte = '02' THEN 2
             ELSE 3
         END AS tip_energie_measure,
-    ci.sursa_complexitate
+    ci.sursa_complexitate,
+    EXISTS (
+        SELECT 1
+        FROM integration.field_inspections fi
+        WHERE fi.nlc = b.punct_de_consum
+    ) AS verificat
+
 FROM sas_visual_analytics.tmp_bill_39 b
 INNER JOIN integration.lc lc ON b.punct_de_consum = lc.vstelle
 INNER JOIN integration.probabilitate p ON b.punct_de_consum = p.nlc

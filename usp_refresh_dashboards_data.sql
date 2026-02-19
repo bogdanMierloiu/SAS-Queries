@@ -32,6 +32,13 @@ BEGIN
 
     RAISE NOTICE 'informatii_tehnice_publish: % rows', v_cnt;
 
+    CALL sas_visual_analytics.usp_refresh_informatii_verificare_publish();
+
+    SELECT COUNT(*) INTO v_cnt
+    FROM sas_visual_analytics.informatii_verificare_publish;
+
+    RAISE NOTICE 'informatii_verificare_publish: % rows', v_cnt;
+
 EXCEPTION
     WHEN OTHERS THEN
         RAISE;

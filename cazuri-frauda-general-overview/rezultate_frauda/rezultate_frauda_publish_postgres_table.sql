@@ -133,7 +133,8 @@ CREATE TABLE sas_visual_analytics.rezultate_frauda_publish (
 
     tip_energie                  TEXT,
     tip_energie_measure          NUMERIC,
-    sursa_complexitate           TEXT
+    sursa_complexitate           TEXT,
+    verificat                    BOOLEAN
 );
 
 CREATE INDEX IF NOT EXISTS idx_rez_frauda_punct ON sas_visual_analytics.rezultate_frauda_publish(punct_de_consum);
@@ -177,17 +178,30 @@ SELECT
         ELSE 'N/A'
     END AS tip_energie,
     CASE
-            WHEN cnt.sparte = '01' THEN 1
-            WHEN cnt.sparte = '02' THEN 2
-            ELSE 3
-        END AS tip_energie_measure,
-    ci.sursa_complexitate
+        WHEN cnt.sparte = '01' THEN 1
+        WHEN cnt.sparte = '02' THEN 2
+        ELSE 3
+    END AS tip_energie_measure,
+
+    ci.sursa_complexitate,
+
+    EXISTS (
+        SELECT 1
+        FROM integration.field_inspections fi
+        WHERE fi.nlc = b.punct_de_consum
+    ) AS verificat
+
 FROM sas_visual_analytics.tmp_bill_39 b
-INNER JOIN integration.lc lc ON b.punct_de_consum = lc.vstelle
-INNER JOIN integration.probabilitate p ON b.punct_de_consum = p.nlc
-INNER JOIN sas_visual_analytics.contor_clean cnt ON lc.devloc = cnt.devloc
-                                                        AND cnt.sparte IN ('01', '02')
-INNER JOIN sas_visual_analytics.tmp_ci_clean ci ON ci.devloc = lc.devloc;
+INNER JOIN integration.lc lc
+    ON b.punct_de_consum = lc.vstelle
+INNER JOIN integration.probabilitate p
+    ON b.punct_de_consum = p.nlc
+INNER JOIN sas_visual_analytics.contor_clean cnt
+    ON lc.devloc = cnt.devloc
+   AND cnt.sparte IN ('01', '02')
+INNER JOIN sas_visual_analytics.tmp_ci_clean ci
+    ON ci.devloc = lc.devloc;
+
 
 --SELECT * FROM sas_visual_analytics.rezultate_frauda_publish WHERE punct_de_consum = '5001656721';
 --SELECT COUNT(*) FROM sas_visual_analytics.rezultate_frauda_publish
