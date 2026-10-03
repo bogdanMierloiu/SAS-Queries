@@ -18,7 +18,7 @@ BEGIN
     VALUES
         ('usp_refresh_rezultate_frauda_publish', clock_timestamp(), NULL, v_start_dttm);
 
-    CALL sas_visual_analytics.usp_refresh_rezultate_frauda_publish();
+    CALL sas_visual_analytics.sas_1_usp_refresh_rezultate_frauda_publish();
 
     SELECT COUNT(*) INTO v_cnt
     FROM sas_visual_analytics.rezultate_frauda_publish;
@@ -36,7 +36,7 @@ BEGIN
     VALUES
         ('usp_refresh_consum_silver', clock_timestamp(), NULL, v_start_dttm);
 
-    CALL sas_visual_analytics.usp_refresh_consum_silver();
+    CALL sas_visual_analytics.sas_2_usp_refresh_consum_silver();
 
     SELECT COUNT(*) INTO v_cnt
     FROM sas_visual_analytics.consum_silver;
@@ -54,7 +54,7 @@ BEGIN
     VALUES
         ('usp_refresh_informatii_de_business_publish', clock_timestamp(), NULL, v_start_dttm);
 
-    CALL sas_visual_analytics.usp_refresh_informatii_de_business_publish();
+    CALL sas_visual_analytics.sas_3_usp_refresh_informatii_de_business_publish();
 
     SELECT COUNT(*) INTO v_cnt
     FROM sas_visual_analytics.informatii_de_business_publish;
@@ -72,7 +72,7 @@ BEGIN
     VALUES
         ('usp_refresh_informatii_tehnice_publish', clock_timestamp(), NULL, v_start_dttm);
 
-    CALL sas_visual_analytics.usp_refresh_informatii_tehnice_publish();
+    CALL sas_visual_analytics.sas_4_usp_refresh_informatii_tehnice_publish();
 
     SELECT COUNT(*) INTO v_cnt
     FROM sas_visual_analytics.informatii_tehnice_publish;
@@ -90,7 +90,7 @@ BEGIN
     VALUES
         ('usp_refresh_informatii_verificare_publish', clock_timestamp(), NULL, v_start_dttm);
 
-    CALL sas_visual_analytics.usp_refresh_informatii_verificare_publish();
+    CALL sas_visual_analytics.sas_5_usp_refresh_informatii_verificare_publish();
 
     SELECT COUNT(*) INTO v_cnt
     FROM sas_visual_analytics.informatii_verificare_publish;

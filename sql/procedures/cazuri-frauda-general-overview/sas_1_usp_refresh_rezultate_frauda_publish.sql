@@ -130,7 +130,7 @@ TRUNCATE TABLE sas_visual_analytics.tmp_bill_39;
 
 WITH params AS (
     SELECT
-        (current_date - interval '3 years')::date AS start_date,
+        (current_date - interval '6 months')::date AS start_date,
         current_date::date AS end_date
 ),
 ee_last AS (
@@ -211,7 +211,7 @@ TRUNCATE TABLE sas_visual_analytics.rezultate_frauda_publish;
 
 INSERT INTO sas_visual_analytics.rezultate_frauda_publish
 SELECT
-    p.probabilitate_de_frauda,
+    p.prob_1 AS probabilitate_de_frauda,
     b.localitate,
     b.judet,
     b.punct_de_consum::text AS punct_de_consum_str,
@@ -258,7 +258,9 @@ SELECT
 
 FROM sas_visual_analytics.tmp_bill_39 b
 INNER JOIN integration.lc lc ON b.punct_de_consum = lc.vstelle
-INNER JOIN integration.probabilitate p ON b.punct_de_consum = p.nlc
+-- Baza de clienti (NLC + prob_1) vine din tabelele *_aplicare_result (vezi view-ul).
+-- Inlocuieste fosta tabela integration.probabilitate.
+INNER JOIN sas_visual_analytics.v_aplicare_result_base p ON btrim(b.punct_de_consum) = p.nlc
 INNER JOIN sas_visual_analytics.contor_clean cnt ON lc.devloc = cnt.devloc
                                                         AND cnt.sparte IN ('01', '02')
 INNER JOIN sas_visual_analytics.tmp_ci_clean ci ON ci.devloc = lc.devloc;

@@ -95,6 +95,10 @@ COMMIT;
       AND c.adat <> '00000000'
       AND c.data_citire BETWEEN DATE '2024-06-01' AND CURRENT_DATE
       AND lc.vstelle IS NOT NULL
+      -- doar clientii din baza *_aplicare_result (NLC-urile scoase de model)
+      AND lc.vstelle::bigint IN (
+          SELECT punct_de_consum FROM sas_visual_analytics.v_aplicare_result_base
+      )
     ORDER BY
         c.equnr,
         c.zwnummer,

@@ -131,6 +131,11 @@ COMMIT;
         a.strada,
         a.subregiune
     FROM bill39 a
+    WHERE btrim(a.punct_de_consum) ~ '^[0-9]+$'
+      -- doar clientii din baza *_aplicare_result (NLC-urile scoase de model)
+      AND btrim(a.punct_de_consum)::bigint IN (
+          SELECT punct_de_consum FROM sas_visual_analytics.v_aplicare_result_base
+      )
     ORDER BY
         a.punct_de_consum,
         (a.tip = 'ee') DESC; -- prefera EE daca exista in ambele
