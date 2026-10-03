@@ -1,7 +1,16 @@
+-- PROCEDURE: sas_visual_analytics.sas_3_usp_refresh_informatii_de_business_publish()
+
+-- DROP PROCEDURE IF EXISTS sas_visual_analytics.sas_3_usp_refresh_informatii_de_business_publish();
+
+CREATE OR REPLACE PROCEDURE sas_visual_analytics.sas_3_usp_refresh_informatii_de_business_publish(
+	)
+LANGUAGE 'plpgsql'
+AS $BODY$
 DECLARE
     v_cnt BIGINT;
 	v_start_dttm timestamptz := date_trunc('second', clock_timestamp());
 	v_numar_linii BIGINT;
+
 BEGIN
 
 -- insert traces
@@ -10,127 +19,204 @@ BEGIN
     FROM sas_visual_analytics.execution_traces;
 
     RAISE NOTICE 'Valoarea este: %', v_numar_linii;
-	
+
     INSERT INTO sas_visual_analytics.execution_traces
         ("JOB", "START_DTTM", "END_DTTM","ID_DTTM","ID_EXECUTIE")
     VALUES
-        ('sas_4_usp_refresh_informatii_tehnice_publish', clock_timestamp(), NULL, v_start_dttm, v_numar_linii);
+        ('sas_3_usp_refresh_informatii_de_business_publish', clock_timestamp(), NULL, v_start_dttm, v_numar_linii);
 
 COMMIT;
 
 -- cod
 
-    TRUNCATE TABLE sas_visual_analytics.tehnic_contor_clean;
+    TRUNCATE TABLE sas_visual_analytics.business_bill_39;
 
-    INSERT INTO sas_visual_analytics.tehnic_contor_clean (
-        devloc,
-        equnr,
-        sparte,
-        matnr,
-        matnr_desc,
-        sernr,
-        gertyptxtl,
-        ami_am_active,
-        datab_date,
-        datbi_date
+    WITH params AS (
+        SELECT (current_date - interval '3 years')::date AS start_date
+    ),
+    bill39 AS (
+        -- EE
+        SELECT *
+        FROM (
+            SELECT DISTINCT ON (b.punct_de_consum)
+                'ee' AS tip,
+                b.punct_de_consum,
+                b.numar_instalatie,
+                b.partener_de_afaceri,
+                b.clasa_contract,
+                b.categorie_tarif,
+                b.tip_facturare,
+                b.invoicing_party,
+                b.nivel_tensiune,
+                b.urban_rural,
+                CASE WHEN b.judet = 'VR' THEN 'VN' ELSE b.judet END AS judet,
+                b.localitate,
+                b.strada,
+                b.subregiune
+            FROM integration.bill39_ee b
+            CROSS JOIN params p
+            WHERE b.punct_de_consum IS NOT NULL
+              AND sas_visual_analytics.immutable_to_date(b.data_facturare, 'DD.MM.YYYY') >= p.start_date
+            ORDER BY
+                b.punct_de_consum,
+                sas_visual_analytics.immutable_to_date(b.data_facturare, 'DD.MM.YYYY') DESC,
+                b.numar_factura DESC
+        ) ee
+
+        UNION ALL
+
+        -- GN
+        SELECT *
+        FROM (
+            SELECT DISTINCT ON (b.punct_de_consum)
+                'gn' AS tip,
+                b.punct_de_consum,
+                b.numar_instalatie,
+                b.partener_de_afaceri,
+                b.clasa_contract,
+                b.categorie_tarif,
+                b.tip_facturare,
+                b.invoicing_party,
+                b.nivel_tensiune,
+                b.urban_rural,
+                CASE WHEN b.judet = 'VR' THEN 'VN' ELSE b.judet END AS judet,
+                b.localitate,
+                b.strada,
+                b.subregiune
+            FROM integration.bill39_gn b
+            CROSS JOIN params p
+            WHERE b.punct_de_consum IS NOT NULL
+              AND sas_visual_analytics.immutable_to_date(b.data_facturare, 'DD.MM.YYYY') >= p.start_date
+            ORDER BY
+                b.punct_de_consum,
+                sas_visual_analytics.immutable_to_date(b.data_facturare, 'DD.MM.YYYY') DESC,
+                b.numar_factura DESC
+        ) gn
     )
-    SELECT DISTINCT ON (c.devloc)
-        c.devloc,
-        c.equnr,
-        c.sparte,
-        c.matnr,
-        c.matnr_desc,
-        c.sernr,
-        c.gertyptxtl,
-        c.ami_am_active,
-        TO_DATE(c.datab::text, 'YYYYMMDD') AS datab_date,
-        TO_DATE(c.datbi::text, 'YYYYMMDD') AS datbi_date
-    FROM integration.contor c
-    WHERE c.devloc IS NOT NULL
-      AND c.datab IS NOT NULL
-      AND c.datbi IS NOT NULL
-      AND CURRENT_DATE BETWEEN TO_DATE(c.datab::text, 'YYYYMMDD')
-                           AND TO_DATE(c.datbi::text, 'YYYYMMDD')
+    INSERT INTO sas_visual_analytics.business_bill_39 (
+        punct_de_consum,
+        punct_de_consum_str,
+        numar_instalatie,
+
+        partener_de_afaceri,
+
+        clasa_contract,
+        categorie_tarif,
+        tip_facturare,
+        invoicing_party,
+        nivel_tensiune,
+        urban_rural,
+
+        judet,
+        localitate,
+        strada,
+        subregiune
+    )
+    SELECT DISTINCT ON (a.punct_de_consum)
+        a.punct_de_consum::bigint AS punct_de_consum,
+        a.punct_de_consum::text   AS punct_de_consum_str,
+        a.numar_instalatie,
+
+        a.partener_de_afaceri,
+
+        a.clasa_contract,
+        a.categorie_tarif,
+        a.tip_facturare,
+        a.invoicing_party,
+        a.nivel_tensiune,
+        a.urban_rural,
+
+        a.judet,
+        a.localitate,
+        a.strada,
+        a.subregiune
+    FROM bill39 a
     ORDER BY
-        c.devloc,
-        TO_DATE(c.datab::text, 'YYYYMMDD') DESC,
-        TO_DATE(c.datbi::text, 'YYYYMMDD') DESC;
+        a.punct_de_consum,
+        (a.tip = 'ee') DESC; -- prefera EE daca exista in ambele
 
 COMMIT;
 
+    TRUNCATE TABLE sas_visual_analytics.informatii_de_business_publish;
 
-    TRUNCATE TABLE sas_visual_analytics.informatii_tehnice_publish;
-
-    INSERT INTO sas_visual_analytics.informatii_tehnice_publish (
+    INSERT INTO sas_visual_analytics.informatii_de_business_publish (
         punct_de_consum,
         punct_de_consum_str,
+        numar_instalatie,
 
-        adresa,
-        gps_latitudine,
-        gps_longitudine,
+        partener_de_afaceri,
+        name,
+        reg_number,
+        cif_number,
 
-        loc_dispozitiv,
-
-        tip_punct_consum_desc,
-
-        nr_persoane,
-
-        instalatie,
-        divizie,
-        divizie_desc,
+        clasa_contract,
         categorie_tarif,
-        categorie_tarif_desc,
-        grila_cod,
-        grid_name,
-        nivel_retea,
-		loading_dttm
+        tip_facturare,
+        invoicing_party,
+        nivel_tensiune,
+        urban_rural,
+
+        judet,
+        localitate,
+        strada,
+        subregiune,
+
+        region,
+        region_name,
+        city,
+
+        ind_sector,
+        ind_sector_desc,
+
+        loading_dttm
+
     )
-    SELECT DISTINCT ON (b.punct_de_consum)
+    SELECT
         b.punct_de_consum,
-        b.punct_de_consum::text AS punct_de_consum_str,
+        b.punct_de_consum_str,
+        b.numar_instalatie,
 
-        lc.address AS adresa,
-        lc.gps_lat AS gps_latitudine,
-        lc.gps_lon AS gps_longitudine,
+        b.partener_de_afaceri,
+        p.name,
+        p.reg_number,
+        p.cif_number,
 
-        lc.devloc AS loc_dispozitiv,
+        b.clasa_contract,
+        b.categorie_tarif,
+        b.tip_facturare,
+        b.invoicing_party,
+        b.nivel_tensiune,
+        b.urban_rural,
 
-        lc.vbsart_desc AS tip_punct_consum_desc,
+        b.judet,
+        b.localitate,
+        b.strada,
+        b.subregiune,
 
-        lc.anzpers::INT AS nr_persoane,
+        p.region,
+        p.region_name,
+        p.city,
 
-        inst.anlage        AS instalatie,
-        inst.sparte        AS divizie,
-        inst.sparte_desc   AS divizie_desc,
-        inst.tariftyp      AS categorie_tarif,
-        inst.tariftyp_desc AS categorie_tarif_desc,
-        inst.grid_id       AS grila_cod,
-        inst.grid_name     AS grid_name,
-        inst.grid_level    AS nivel_retea,
-        LOCALTIMESTAMP AS loading_dttm
+        p.ind_sector,
+        p.ind_sector_desc,
+	    LOCALTIMESTAMP AS loading_dttm
 
     FROM sas_visual_analytics.business_bill_39 b
-    INNER JOIN integration.lc lc
-            ON b.punct_de_consum_str = lc.vstelle
-    INNER JOIN integration.instalatie inst
-            ON b.numar_instalatie = inst.anlage
-    INNER JOIN sas_visual_analytics.tehnic_contor_clean cnt
-            ON cnt.devloc = lc.devloc
-    ORDER BY
-        b.punct_de_consum,
-        lc.devloc DESC;
+    LEFT JOIN integration.partner p
+           ON b.partener_de_afaceri = p.partner;
+
 COMMIT;
 
 -- update traces
 
     SELECT COUNT(*) INTO v_cnt
-    FROM sas_visual_analytics.informatii_tehnice_publish;
+    FROM sas_visual_analytics.informatii_de_business_publish;
 
-    RAISE NOTICE 'informatii_tehnice_publish: % rows', v_cnt;
+    RAISE NOTICE 'informatii_de_business_publish: % rows', v_cnt;
 
     UPDATE sas_visual_analytics.execution_traces
     SET "END_DTTM" = clock_timestamp()
-    WHERE "JOB"='sas_4_usp_refresh_informatii_tehnice_publish' and "ID_EXECUTIE" = v_numar_linii;
+    WHERE "JOB"='sas_3_usp_refresh_informatii_de_business_publish' and "ID_EXECUTIE" = v_numar_linii;
 
 COMMIT;
 
@@ -139,3 +225,6 @@ COMMIT;
 --         RAISE;
 END;
 
+$BODY$;
+ALTER PROCEDURE sas_visual_analytics.sas_3_usp_refresh_informatii_de_business_publish()
+    OWNER TO pgadmin;

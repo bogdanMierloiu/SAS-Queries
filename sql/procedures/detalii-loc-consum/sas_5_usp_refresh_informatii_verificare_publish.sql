@@ -1,3 +1,11 @@
+-- PROCEDURE: sas_visual_analytics.sas_5_usp_refresh_informatii_verificare_publish()
+
+-- DROP PROCEDURE IF EXISTS sas_visual_analytics.sas_5_usp_refresh_informatii_verificare_publish();
+
+CREATE OR REPLACE PROCEDURE sas_visual_analytics.sas_5_usp_refresh_informatii_verificare_publish(
+	)
+LANGUAGE 'plpgsql'
+AS $BODY$
 DECLARE
     v_cnt BIGINT;
 	v_start_dttm timestamptz := date_trunc('second', clock_timestamp());
@@ -11,7 +19,7 @@ BEGIN
     FROM sas_visual_analytics.execution_traces;
 
     RAISE NOTICE 'Valoarea este: %', v_numar_linii;
-	
+
     INSERT INTO sas_visual_analytics.execution_traces
         ("JOB", "START_DTTM", "END_DTTM","ID_DTTM","ID_EXECUTIE")
     VALUES
@@ -81,3 +89,6 @@ COMMIT;
 --     WHEN OTHERS THEN
 --         RAISE;
 END;
+$BODY$;
+ALTER PROCEDURE sas_visual_analytics.sas_5_usp_refresh_informatii_verificare_publish()
+    OWNER TO pgadmin;
