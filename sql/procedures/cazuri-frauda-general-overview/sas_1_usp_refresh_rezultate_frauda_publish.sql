@@ -1,9 +1,31 @@
-CREATE OR REPLACE PROCEDURE sas_visual_analytics.usp_refresh_rezultate_frauda_publish()
-LANGUAGE plpgsql
-AS $$
+-- PROCEDURE: sas_visual_analytics.sas_1_usp_refresh_rezultate_frauda_publish()
+
+-- DROP PROCEDURE IF EXISTS sas_visual_analytics.sas_1_usp_refresh_rezultate_frauda_publish();
+
+CREATE OR REPLACE PROCEDURE sas_visual_analytics.sas_1_usp_refresh_rezultate_frauda_publish(
+	)
+LANGUAGE 'plpgsql'
+AS $BODY$
+DECLARE
+    v_cnt BIGINT;
+	v_start_dttm timestamptz := date_trunc('second', clock_timestamp());
+	v_numar_linii BIGINT;
 BEGIN
     BEGIN
 
+-- insert into traces;
+    SELECT COUNT(*) + 1
+    INTO v_numar_linii
+    FROM sas_visual_analytics.execution_traces;
+
+    RAISE NOTICE 'Valoarea este: %', v_numar_linii;
+
+    INSERT INTO sas_visual_analytics.execution_traces
+        ("JOB", "START_DTTM", "END_DTTM","ID_DTTM","ID_EXECUTIE")
+    VALUES
+        ('sas_1_usp_refresh_rezultate_frauda_publish', clock_timestamp(), NULL, v_start_dttm,v_numar_linii);
+
+    COMMIT;
 
 -- CONTOR --
 TRUNCATE TABLE sas_visual_analytics.contor_clean;
@@ -35,7 +57,6 @@ ORDER BY c.devloc,
             WHEN UPPER(c.matnr_desc) LIKE '%TRI%'  THEN 3
             ELSE 1
          END DESC;
-
 
 -- TRANSFORMATOR --
 TRUNCATE TABLE sas_visual_analytics.transformator_clean;
@@ -84,7 +105,6 @@ SELECT devloc,
   FROM distinct_rt
  GROUP BY devloc;
 
-
 -- COMPLEXITATE INSTALATIE --
 TRUNCATE TABLE sas_visual_analytics.complexitate_instalatie;
 
@@ -104,7 +124,6 @@ SELECT devloc,
 	  'TRANSFORMATOR' AS sursa_complexitate
 FROM sas_visual_analytics.transformator_clean
 WHERE complexitate_instalatie IS NOT NULL;
-
 
 -- REZULTATE FRAUDA --
 TRUNCATE TABLE sas_visual_analytics.tmp_bill_39;
@@ -234,7 +253,8 @@ SELECT
         SELECT 1
         FROM integration.field_inspections fi
         WHERE fi.nlc = b.punct_de_consum
-    ) AS verificat
+    ) AS verificat,
+	LOCALTIMESTAMP AS loading_dttm
 
 FROM sas_visual_analytics.tmp_bill_39 b
 INNER JOIN integration.lc lc ON b.punct_de_consum = lc.vstelle
@@ -243,9 +263,26 @@ INNER JOIN sas_visual_analytics.contor_clean cnt ON lc.devloc = cnt.devloc
                                                         AND cnt.sparte IN ('01', '02')
 INNER JOIN sas_visual_analytics.tmp_ci_clean ci ON ci.devloc = lc.devloc;
 
-    EXCEPTION
-        WHEN OTHERS THEN
-            RAISE;
+COMMIT;
+
+-- update traces
+
+    SELECT COUNT(*) INTO v_cnt
+    FROM sas_visual_analytics.rezultate_frauda_publish;
+
+    RAISE NOTICE 'rezultate_frauda_publish: % rows', v_cnt;
+
+    UPDATE sas_visual_analytics.execution_traces
+    SET "END_DTTM" = clock_timestamp()
+    WHERE "JOB"='sas_1_usp_refresh_rezultate_frauda_publish' and "ID_EXECUTIE" = v_numar_linii;
+
+    COMMIT;
+
+    -- EXCEPTION
+    --     WHEN OTHERS THEN
+    --         RAISE;
     END;
 END;
-$$;
+$BODY$;
+ALTER PROCEDURE sas_visual_analytics.sas_1_usp_refresh_rezultate_frauda_publish()
+    OWNER TO pgadmin;
