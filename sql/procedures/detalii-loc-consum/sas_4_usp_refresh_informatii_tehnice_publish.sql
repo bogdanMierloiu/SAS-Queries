@@ -24,7 +24,7 @@ BEGIN
     VALUES
         ('sas_4_usp_refresh_informatii_tehnice_publish', clock_timestamp(), NULL, v_start_dttm, v_numar_linii);
 
-COMMIT;
+-- COMMIT;
 
 -- cod
 
@@ -64,7 +64,7 @@ COMMIT;
         TO_DATE(c.datab::text, 'YYYYMMDD') DESC,
         TO_DATE(c.datbi::text, 'YYYYMMDD') DESC;
 
-COMMIT;
+-- COMMIT;
 
     TRUNCATE TABLE sas_visual_analytics.informatii_tehnice_publish;
 
@@ -126,7 +126,7 @@ COMMIT;
     ORDER BY
         b.punct_de_consum,
         lc.devloc DESC;
-COMMIT;
+-- COMMIT;
 
 -- update traces
 
@@ -139,7 +139,7 @@ COMMIT;
     SET "END_DTTM" = clock_timestamp()
     WHERE "JOB"='sas_4_usp_refresh_informatii_tehnice_publish' and "ID_EXECUTIE" = v_numar_linii;
 
-COMMIT;
+-- COMMIT;
 
 -- EXCEPTION
 --     WHEN OTHERS THEN

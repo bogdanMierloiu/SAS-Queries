@@ -25,7 +25,7 @@ BEGIN
     VALUES
         ('sas_2_usp_refresh_consum_silver', clock_timestamp(), NULL, v_start_dttm,v_numar_linii);
 
-COMMIT;
+-- COMMIT;
 
     -- 1) RAW_FILTERED_DATA
     TRUNCATE TABLE sas_visual_analytics.raw_filtered_data;
@@ -105,7 +105,7 @@ COMMIT;
         c.data_citire,
         c.data_citire DESC;
 
-COMMIT;
+-- COMMIT;
 
     -- 2) CONSUM_CALCULAT
     TRUNCATE TABLE sas_visual_analytics.consum_calculat;
@@ -144,7 +144,7 @@ COMMIT;
     WHERE data_citire IS NOT NULL
       AND index_val > 0;
 
-COMMIT;
+-- COMMIT;
 
     -- 3) CONSUM_SILVER
     TRUNCATE TABLE sas_visual_analytics.consum_silver;
@@ -180,7 +180,7 @@ COMMIT;
       AND consum > 0
     ORDER BY data_citire DESC, kennziff, zwnummer;
 
-COMMIT;
+-- COMMIT;
 
 -- update traces
 
@@ -193,7 +193,7 @@ COMMIT;
     SET "END_DTTM" = clock_timestamp()
     WHERE "JOB"='sas_2_usp_refresh_consum_silver' and "ID_EXECUTIE" = v_numar_linii;
 
-COMMIT;
+-- COMMIT;
 
 -- EXCEPTION
 --     WHEN OTHERS THEN

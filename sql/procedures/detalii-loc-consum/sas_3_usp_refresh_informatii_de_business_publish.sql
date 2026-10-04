@@ -25,14 +25,14 @@ BEGIN
     VALUES
         ('sas_3_usp_refresh_informatii_de_business_publish', clock_timestamp(), NULL, v_start_dttm, v_numar_linii);
 
-COMMIT;
+-- COMMIT;
 
 -- cod
 
     TRUNCATE TABLE sas_visual_analytics.business_bill_39;
 
     WITH params AS (
-        SELECT (current_date - interval '3 years')::date AS start_date
+        SELECT (current_date - interval '6 months')::date AS start_date
     ),
     bill39 AS (
         -- EE
@@ -140,7 +140,7 @@ COMMIT;
         a.punct_de_consum,
         (a.tip = 'ee') DESC; -- prefera EE daca exista in ambele
 
-COMMIT;
+-- COMMIT;
 
     TRUNCATE TABLE sas_visual_analytics.informatii_de_business_publish;
 
@@ -210,7 +210,7 @@ COMMIT;
     LEFT JOIN integration.partner p
            ON b.partener_de_afaceri = p.partner;
 
-COMMIT;
+-- COMMIT;
 
 -- update traces
 
@@ -223,7 +223,7 @@ COMMIT;
     SET "END_DTTM" = clock_timestamp()
     WHERE "JOB"='sas_3_usp_refresh_informatii_de_business_publish' and "ID_EXECUTIE" = v_numar_linii;
 
-COMMIT;
+-- COMMIT;
 
 -- EXCEPTION
 --     WHEN OTHERS THEN

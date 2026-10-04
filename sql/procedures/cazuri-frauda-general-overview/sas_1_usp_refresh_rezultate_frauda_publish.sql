@@ -25,7 +25,7 @@ BEGIN
     VALUES
         ('sas_1_usp_refresh_rezultate_frauda_publish', clock_timestamp(), NULL, v_start_dttm,v_numar_linii);
 
-    COMMIT;
+    -- COMMIT;
 
 -- CONTOR --
 TRUNCATE TABLE sas_visual_analytics.contor_clean;
@@ -265,7 +265,7 @@ INNER JOIN sas_visual_analytics.contor_clean cnt ON lc.devloc = cnt.devloc
                                                         AND cnt.sparte IN ('01', '02')
 INNER JOIN sas_visual_analytics.tmp_ci_clean ci ON ci.devloc = lc.devloc;
 
-COMMIT;
+-- COMMIT;
 
 -- update traces
 
@@ -278,7 +278,7 @@ COMMIT;
     SET "END_DTTM" = clock_timestamp()
     WHERE "JOB"='sas_1_usp_refresh_rezultate_frauda_publish' and "ID_EXECUTIE" = v_numar_linii;
 
-    COMMIT;
+    -- COMMIT;
 
     -- EXCEPTION
     --     WHEN OTHERS THEN

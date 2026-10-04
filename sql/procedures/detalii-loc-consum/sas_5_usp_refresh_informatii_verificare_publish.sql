@@ -25,7 +25,7 @@ BEGIN
     VALUES
         ('sas_5_usp_refresh_informatii_verificare_publish', clock_timestamp(), NULL, v_start_dttm,v_numar_linii);
 
-COMMIT;
+-- COMMIT;
 
 -- code
 
@@ -70,7 +70,7 @@ WHERE btrim(fi.nlc) ~ '^[0-9]+$'
   )
 ORDER BY TO_DATE(fi.data::text, 'YYYY-MM-DD') DESC;
 
-COMMIT;
+-- COMMIT;
 
 -- update traces
 
@@ -83,7 +83,7 @@ COMMIT;
     SET "END_DTTM" = clock_timestamp()
     WHERE "JOB"='sas_5_usp_refresh_informatii_verificare_publish' and "ID_EXECUTIE" = v_numar_linii;
 
-COMMIT;
+-- COMMIT;
 
 -- EXCEPTION
 --     WHEN OTHERS THEN
