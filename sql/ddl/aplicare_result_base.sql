@@ -15,17 +15,27 @@
 
 CREATE OR REPLACE VIEW sas_visual_analytics.v_aplicare_result_base AS
 WITH aplicare_result_union AS (
-    SELECT nlc, prob_1 FROM integration.gn_pf_aplicare_result
-    -- UNION ALL
-    -- SELECT nlc, prob_1 FROM integration.gn_pj_aplicare_result
-    -- UNION ALL
-    -- SELECT nlc, prob_1 FROM integration.ee_pf_aplicare_result
-    -- UNION ALL
-    -- SELECT nlc, prob_1 FROM integration.ee_pj_aplicare_result
+    SELECT nlc, prob_1
+    FROM integration.gn_pf_aplicare_result
+
+    UNION ALL
+
+    SELECT nlc::TEXT, scor AS prob_1
+    FROM integration.gn_pj_aplicare_result
+
+    UNION ALL
+
+    SELECT nlc::TEXT, scor AS prob_1
+    FROM integration.ee_pf_aplicare_result
+
+    UNION ALL
+
+    SELECT nlc::TEXT, scor AS prob_1
+    FROM integration.ee_pj_aplicare_result
 )
 SELECT DISTINCT ON (btrim(a.nlc))
-    btrim(a.nlc)         AS nlc,             -- text, pentru join direct pe punct_de_consum (text)
-    btrim(a.nlc)::bigint AS punct_de_consum, -- bigint, pentru filtrele IN (...)
+    btrim(a.nlc)         AS nlc,
+    btrim(a.nlc)::BIGINT AS punct_de_consum,
     a.prob_1
 FROM aplicare_result_union a
 WHERE a.nlc IS NOT NULL
